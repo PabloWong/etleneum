@@ -1,0 +1,130 @@
+<html !DOCTYPE html>
+<head>
+<script src="jquery.js"><!----></script>
+<script src="jquery_qrcode.js"><!----></script>
+<script src="qrcode.js"><!----></script>
+<script>
+	
+	session=null;
+	
+	contractid="czczs34pya"
+	base_url="https://test.etleneum.com/~"
+        $(document).ready(function(){	
+
+		var source = new EventSource(base_url + "~~/contract/" + contractid);
+		source.onmessage = function(event) {
+			document.getElementById("result").innerHTML += "Message: " + event.data+ "<br>";
+		}; 
+		source.addEventListener("contract-created" , e=>{
+			document.getElementById("result").innerHTML += "contract-created: " + e.data+ "<br>";
+
+		});
+		source.addEventListener("contract-error", e=>{
+			document.getElementById("result").innerHTML += "contract-error: " + e.data+ "<br>";
+		});
+		source.addEventListener("call-run-event", e=>{
+			document.getElementById("result").innerHTML += "call-run-event: " + e.data+ "<br>";
+		});
+			
+		source.addEventListener("call-made", e=>{
+			document.getElementById("result").innerHTML += "call made: " + e.data+ "<br>";
+		});
+		
+		source.addEventListener("call-error", e=>{
+			document.getElementById("result").innerHTML += "call-error: " + e.data+ "<br>";
+		});
+		source2 = new EventSource(base_url + "~~/session?session=" + session);
+		source2.onmessage = function(event){
+			document.getElementById("result_session").innerHTML += event.data+ "<br>";
+		};
+		
+		source2.addEventListener("lnurls", e=>{
+			var lnurls= JSON.parse(e.data)
+			document.getElementById("qrcode_text").innerHTML=lnurls.auth;
+			$("#qrcode").qrcode(lnurls.auth) 
+			
+			document.getElementById("result_session").innerHTML += "lnurls: " + e.data+ "<br>";
+		});
+		source2.addEventListener("auth", e=>{
+			var auth = JSON.parse(e.data)
+			if (auth.session)
+				session = auth.session;
+			
+			if (auth.account){
+				document.getElementById("qrcode").innerHTML="";
+				document.getElementById("qrcode_text").innerHTML="";
+				document.getElementById("accountid").innerHTML=auth.account;
+			}
+			auth.secret=null;q
+					
+			document.getElementById("result_session").innerHTML += "auth: " + e.data+ "<br>";
+		});
+		source2.addEventListener("history", e=>{
+			document.getElementById("result_session").innerHTML += "history: " + e.data+ "<br>";
+		});
+		source2.addEventListener("withdraw", e=>{
+			document.getElementById("result_session").innerHTML += "withdraw: " + e.data+ "<br>";
+		});
+		$("#button_call").on("click",function(){
+			var number_list = [];
+			var numbers = document.getElementById("txtNumberList").value.split(",");
+ 			numbers.forEach(function (num){
+	 			number_list.push(parseInt(num));
+			});
+				
+			var msatoshi = parseInt(document.getElementById("txtSatoshi").value)*1000;
+			var min_value = parseInt(document.getElementById("txtMinValue").value);
+			var max_value = parseInt(document.getElementById("txtMaxValue").value);
+			$.ajax({
+				url: base_url + "/contract/" + contractid + "/call?session="+session,
+				type: "POST",
+				content_type: "application/json",
+				data: JSON.stringify(
+				{
+					method: "bet",
+					msatoshi: msatoshi,
+					payload: {
+						min_value: min_value,
+						max_value: max_value,
+						number_list: number_list,
+					}
+				}),
+				dataType:'json',
+				success: function(data){
+				       $( "#contractlist" ).html( data );
+				       alert( "Load was performed." );
+				}
+			});
+		});
+	 });
+</script>
+
+</head>
+<body>
+	<div style="float:left">
+		<div id="accountid"></div>
+		<div><label>Satoshi: <input type="text" id="txtSatoshi" value="100"></div>
+		<div>
+			<span><label>Min Value: <input type="text" id="txtMinValue" value="1"></label></span>
+			<span><label>Max Value<input type="text" id="txtMaxValue" value="10"></label></span>
+		</div>
+		<div><label>Number List: <input type="text" id="txtNumberList" value="1,2,3,4,5"></label></div>
+	
+		<button id="button_call">bet</button>
+	</div>
+	<div>
+		<div id="qrcode"></div>
+		<div id="qrcode_text">&nbsp;</div>
+	</div>
+	<div>
+		<div style="float:left;width:50%;overflow-wrap:break-word;display:block;">
+			result:
+			<div id="result" style="width:50%"></div>
+		</div>
+		<div style="overflow-wrap:break-word;display:inline-block; width:50%;">
+			session_result:
+			<div id="result_session"></div>
+		</div>
+	</div>
+</body>
+</html>
